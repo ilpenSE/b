@@ -1,6 +1,17 @@
 #include "parser.hpp"
 #include <unordered_map>
 
+template <typename... Ts>
+static bool is_one_of(const Node &n)
+{
+  return (std::holds_alternative<Ts>(n) || ...);
+}
+
+bool is_lvalue(Node *node)
+{
+  return node && is_one_of<Name, Deref>(*node);
+}
+
 Node *Parser::parse_program()
 {
   std::vector<FunDef> functions;
@@ -63,7 +74,14 @@ Node *Parser::parse_stmt()
   Node *e = parse_rvalue();
   if (!expect(TokenType::Semicolon)) {
     report_error("expected ';'");
-    consume();
+    // panic-mode, if any syntax error happens
+    // consume all tokens until a safe synchronization point
+    while (m_tok.type != TokenType::End &&
+      m_tok.type != TokenType::Semicolon &&
+      m_tok.type != TokenType::CCurly) {
+      consume();
+    }
+    expect(TokenType::Semicolon);
   }
   return e;
 }
@@ -187,10 +205,11 @@ Node *Parser::parse_rvalue()
 Node *Parser::parse_binary(int min_prec)
 {
   Node *lhs = parse_unary();
+  if (!lhs) return nullptr;
   while (true) {
-    int prec = binop_prec(m_tok.type);
-    if (prec < min_prec) break;
     TokenType op = m_tok.type;
+    int prec = binop_prec(op);
+    if (prec < min_prec) break;
     consume();
     Node *rhs = parse_binary(prec + 1);
     if (!rhs) return lhs;
@@ -201,24 +220,67 @@ Node *Parser::parse_binary(int min_prec)
 
 Node *Parser::parse_unary()
 {
-  if (m_tok.type == TokenType::Inc || m_tok.type == TokenType::Dec) {
-    auto op = m_tok.type;
-    Token prev_tok = m_tok;
+  switch (m_tok.type) {
+  case TokenType::Inc: case TokenType::Dec:
+  case TokenType::Minus: case TokenType::Not: {
+    // TODO: constant folding if possible
+    Token op_tok = m_tok;
+    TokenType op = m_tok.type;
     consume();
     Node *operand = parse_unary();
-    if (!std::holds_alternative<Name>(*operand)) {
-      report_error({.tok=&prev_tok, .len=2}, "lvalue required in pre-{} operator", (op == TokenType::Inc ? "increment" : "decrement"));
+
+    if (op == TokenType::Inc || op == TokenType::Dec) {
+      if (!is_lvalue(operand)) {
+        report_error({.tok=&op_tok, .len=2}, "lvalue required in pre-{} operator",
+                     (op == TokenType::Inc ? "increment" : "decrement"));
+      }
     }
-    return node(IncDec{.prefix=true, .op=op, .value=operand});
+
+    if (!operand) return nullptr;
+    return node(Unary{.op=op, .operand=operand});
+  }
+  case TokenType::Asterisk: {
+    consume();
+    Node *operand = parse_unary();
+    if (!operand) return nullptr;
+    return node(Deref{operand});
+  }
+  case TokenType::Ampersand: {
+    Token op_tok = m_tok;
+    consume();
+    Node *operand = parse_unary();
+    if (!operand) return nullptr;
+    if (!is_lvalue(operand)) report_error({.tok=&op_tok}, "can only take address of an lvalue");
+    return node(AddrOf{operand});
+  }
+  default: break;
   }
   return parse_postfix();
 }
 
 Node *Parser::parse_ternary()
-{ return parse_binary(0); }
+{
+  Node *cond = parse_binary(0);
+  if (!cond || !expect(TokenType::Question)) return cond;
+  Node *then_expr = parse_binary(0);
+  if (!expect(TokenType::Colon)) report_error("expected ':' after ternary expression");
+  Node *else_expr = parse_ternary();
+  return node(Ternary{cond, then_expr, else_expr});
+}
 
 Node *Parser::parse_assignment()
-{ return parse_ternary(); }
+{
+  Node *target = parse_ternary();
+  auto op_tok = m_tok;
+  if (!target || !is_assign_op(m_tok.type)) return target;
+  consume();
+  Node *value = parse_assignment(); // Assignments bind right to left
+  if (!is_lvalue(target)) {
+    report_error({.tok=&op_tok, .len=op_text(op_tok.type).size()}, "lvalue required as left operand of assignment");
+  }
+  if (!value) return target;
+  return node(Assign{op_tok.type, target, value});
+}
 
 Node *Parser::parse_postfix()
 {
@@ -239,11 +301,16 @@ Node *Parser::parse_postfix()
       e = node(FunCall{.callee=e, .args=std::move(args)});
     } else if (m_tok.type == TokenType::Inc || m_tok.type == TokenType::Dec) {
       TokenType op = m_tok.type;
-      if (!std::holds_alternative<Name>(*e)) {
+      if (!is_lvalue(e)) {
         report_error({.len=2}, "lvalue required in post-{} operator", (op == TokenType::Inc ? "increment" : "decrement"));
       }
       consume();
       e = node(IncDec{.prefix=false, .op=op, .value=e});
+    } else if (expect(TokenType::OBracket)) {
+      Node *idx = parse_rvalue();
+      if (!expect(TokenType::CBracket)) report_error("expected ']' after expression");
+      if (!idx) return e;
+      return node(Deref{node(BinOp{.op=TokenType::Plus, .lhs=e, .rhs=idx})});
     } else break;
   }
   return e;

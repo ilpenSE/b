@@ -51,11 +51,16 @@ struct IncDec {
   TokenType op;
   Node *value;
 };
+struct Unary { TokenType op; Node *operand; };
+struct Ternary { Node *cond, *then_expr, *else_expr; };
+struct Assign { TokenType op; Node *target, *value; };
+struct Deref { Node *operand; };
+struct AddrOf { Node *operand; };
 
 using NodeVariant = std::variant<
   Number, String, Char, Name, BinOp, FunCall,
   ExtrnDecl, IfStmt, Block, FunDef, Var, Null, Program,
-  IncDec
+  IncDec, Unary, Ternary, Assign, Deref, AddrOf
 >;
 
 struct Node : NodeVariant {
@@ -73,6 +78,8 @@ Node *node(T val)
   *node = std::move(val);
   return node;
 }
+
+extern bool is_lvalue(Node *node);
 
 class Parser {
   Lexer &m_l;

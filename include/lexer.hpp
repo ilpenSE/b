@@ -5,7 +5,7 @@
 
 enum class TokenType {
   // Single character tokens
-  Colon = ':', Assign = '=', LessThan = '<', GreaterThan = '>',
+  Colon = ':', Eq = '=', LessThan = '<', GreaterThan = '>',
   OCurly = '{', CCurly = '}', OBracket = '[', CBracket = ']',
   OParen = '(', CParen = ')', Semicolon = ';', Not = '!',
   Asterisk = '*', Slash = '/', Comma = ',', Ampersand = '&',
@@ -22,9 +22,12 @@ enum class TokenType {
   Inc, Dec,
   PlusAssign, MinusAssign,
   MulAssign, DivAssign,
+  ModAssign,
 };
 
 extern const char *to_cstr(TokenType tt);
+extern std::string_view op_text(TokenType t);
+extern bool is_assign_op(TokenType t);
 
 template <>
 struct std::formatter<TokenType> : std::formatter<std::string> {

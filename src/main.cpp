@@ -76,6 +76,29 @@ void dump(const Node *node, int depth)
     [&](const Null&) {
       println("Null");
     },
+    [&](const Unary &unary) {
+      println("Unary {} ({})", op_text(unary.op), unary.op);
+      dump(unary.operand, depth + 1);
+    },
+    [&](const Deref &d) {
+      println("Deref");
+      dump(d.operand, depth + 1);
+    },
+    [&](const AddrOf &ao) {
+      println("AddrOf");
+      dump(ao.operand, depth + 1);
+    },
+    [&](const Ternary &t) {
+      println("Ternary");
+      dump(t.cond, depth + 1);
+      dump(t.then_expr, depth + 1);
+      if (t.else_expr) dump(t.else_expr, depth + 1);
+    },
+    [&](const Assign &a) {
+      println("{}", a.op == TokenType::Eq ? "Assignment" : to_cstr(a.op));
+      dump(a.target, depth + 1);
+      dump(a.value, depth + 1);
+    },
     [&](const IncDec &id) {
       println("{}{}", (id.prefix ? "Pre" : "Post"), id.op);
       dump(id.value, depth + 1);

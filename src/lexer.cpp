@@ -1,6 +1,60 @@
 #include "lexer.hpp"
 #include <cctype>
 
+namespace {
+constexpr const Token ops[] = {
+  {TokenType::ShlAssign, "<<="}, {TokenType::ShrAssign, ">>="},
+
+  {TokenType::EqEq, "=="},       {TokenType::NotEq, "!="},
+  {TokenType::LessEq, "<="},     {TokenType::GreaterEq, ">="},
+  {TokenType::Shl, "<<"},        {TokenType::Shr, ">>"},
+  {TokenType::Inc, "++"},        {TokenType::Dec, "--"},
+  {TokenType::PlusAssign, "+="}, {TokenType::MinusAssign, "-="},
+  {TokenType::MulAssign, "*="},  {TokenType::DivAssign, "/="},
+  {TokenType::ModAssign, "%="},
+
+  {TokenType::OCurly, "{"},    {TokenType::CCurly, "}"},
+  {TokenType::OBracket, "["},  {TokenType::CBracket, "]"},
+  {TokenType::OParen, "("},    {TokenType::CParen, ")"},
+  {TokenType::LessThan, "<"},  {TokenType::GreaterThan, ">"},
+  {TokenType::Mod, "%"},       {TokenType::Pipe, "|"},
+  {TokenType::Colon, ":"},     {TokenType::Question, "?"},
+  {TokenType::Asterisk, "*"},  {TokenType::Ampersand, "&"},
+  {TokenType::Semicolon, ";"}, {TokenType::Comma, ","},
+  {TokenType::Eq, "="},        {TokenType::Plus, "+"},
+  {TokenType::Minus, "-"},     {TokenType::Not, "!"},
+};
+
+constexpr auto make_ops_table()
+{
+  std::array<std::string_view, 1024> t{};
+  for (const auto &op : ops) t[static_cast<size_t>(op.type)] = op.lexeme;
+  return t;
+}
+
+constexpr auto ops_table = make_ops_table();
+} // namespace
+
+bool is_assign_op(TokenType t)
+{
+  switch (t) {
+  case TokenType::Eq:
+  case TokenType::PlusAssign:
+  case TokenType::MinusAssign:
+  case TokenType::MulAssign:
+  case TokenType::DivAssign:
+  case TokenType::ModAssign:
+  case TokenType::ShlAssign:
+  case TokenType::ShrAssign:
+    return true;
+  default:
+    return false;
+  }
+}
+
+std::string_view op_text(TokenType t)
+{ return ops_table[static_cast<size_t>(t)]; }
+
 Token Lexer::read_string(char indicator)
 {
   size_t old_row = m_row, old_col = m_col, old_cur = m_cur;
@@ -71,32 +125,9 @@ Token Lexer::next()
 {
   skip_comments_or_whitespaces();
 
-  static const struct { std::string_view text; TokenType type; } ops[] = {
-    {"<<=", TokenType::ShlAssign}, {">>=", TokenType::ShrAssign},
-
-    {"==", TokenType::EqEq},  {"!=", TokenType::NotEq},
-    {"<=", TokenType::LessEq}, {">=", TokenType::GreaterEq},
-    {"<<", TokenType::Shl},   {">>", TokenType::Shr},
-    {"++", TokenType::Inc},   {"--", TokenType::Dec},
-    {"+=", TokenType::PlusAssign}, {"-=", TokenType::MinusAssign},
-    {"*=", TokenType::MulAssign},  {"/=", TokenType::DivAssign},
-
-    {"{", TokenType::OCurly},    {"}", TokenType::CCurly},
-    {"[", TokenType::OBracket},  {"]", TokenType::CBracket},
-    {"(", TokenType::OParen},    {")", TokenType::CParen},
-    {"<", TokenType::LessThan},  {">", TokenType::GreaterThan},
-    {"%", TokenType::Mod},       {"|", TokenType::Pipe},
-    {":", TokenType::Colon},     {"?", TokenType::Question},
-    {"*", TokenType::Asterisk},  {"&", TokenType::Ampersand},
-    {";", TokenType::Semicolon}, {",", TokenType::Comma},
-    {"+", TokenType::Plus}, {"-", TokenType::Minus},
-    {"!", TokenType::Not},
-  };
-
   char c = peek();
 
-  if ((c >= '0' && c <= '9') ||
-     c == '-') {
+  if (c >= '0' && c <= '9') {
     return read_number();
   }
 
@@ -111,9 +142,9 @@ Token Lexer::next()
   // operator / symbol
   std::string_view rest = m_buf.substr(m_cur);
   for (auto &op : ops) {
-    if (rest.starts_with(op.text)) {
+    if (rest.starts_with(op.lexeme)) {
       Token t = {.type=op.type, .row=m_row, .col=m_col};
-      for (size_t i = 0; i < op.text.size(); i++) advance();
+      for (size_t i = 0; i < op.lexeme.size(); i++) advance();
       return t;
     }
   }
@@ -160,7 +191,7 @@ const char *to_cstr(TokenType tt)
   case TokenType::CParen: return "CParen";
   case TokenType::Semicolon: return "Semicolon";
   case TokenType::Colon: return "Colon";
-  case TokenType::Assign: return "Assign";
+  case TokenType::Eq: return "Eq";
   case TokenType::Plus: return "Plus";
   case TokenType::Minus: return "Minus";
   case TokenType::Asterisk: return "Asterisk";
@@ -185,6 +216,7 @@ const char *to_cstr(TokenType tt)
   case TokenType::MinusAssign: return "MinusAssign";
   case TokenType::MulAssign: return "MulAssign";
   case TokenType::DivAssign: return "DivAssign";
+  case TokenType::ModAssign: return "ModAssign";
   default: return "<invalid>";
   }
 }
