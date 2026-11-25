@@ -107,6 +107,19 @@ void dump(const Node *node, int depth)
       dump(t.then_expr, depth + 1);
       if (t.else_expr) dump(t.else_expr, depth + 1);
     },
+    [&](const GotoStmt &g) {
+      println("Goto");
+      dump(g.label, depth + 1);
+    },
+    [&](const ReturnStmt &r) {
+      println("Return");
+      dump(r.ret_val, depth + 1);
+    },
+    [&](const WhileStmt &w) {
+      println("While");
+      dump(w.cond, depth + 1);
+      dump(w.body, depth + 1);
+    },
     [&](const Assign &a) {
       println("{}", a.op == TokenType::Eq ? "Assignment" : to_cstr(a.op));
       dump(a.target, depth + 1);

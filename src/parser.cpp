@@ -163,19 +163,36 @@ Node *Parser::parse_extrn()
 // while ( rvalue ) statement
 Node *Parser::parse_while()
 {
-  todo();
+  consume(); // while
+  if (!expect(TokenType::OParen)) report_error("expected '(' in while condition");
+  Node *cond = parse_rvalue();
+  if (!expect(TokenType::CParen)) report_error("expected ')' in while condition");
+  if (!cond) return nullptr;
+
+  Node *body = parse_stmt();
+  return node(WhileStmt{cond, body});
 }
 
 // goto rvalue ;
 Node *Parser::parse_goto()
 {
-  todo();
+  consume(); // goto
+  Node *label = parse_rvalue();
+  if (!label) return nullptr;
+  if (!expect(TokenType::Semicolon)) report_error("expected ';' in goto statement");
+  return node(GotoStmt{label});
 }
 
 // return {( rvalue )}01 ;
 Node *Parser::parse_return()
 {
-  todo();
+  consume(); // return
+  Node *ret_val = nullptr;
+  if (!expect(TokenType::Semicolon)) {
+    ret_val = parse_rvalue();
+    if (!expect(TokenType::Semicolon)) report_error("expected ';' in return statement");
+  }
+  return node(ReturnStmt{ret_val});
 }
 
 Node *Parser::parse_primary()

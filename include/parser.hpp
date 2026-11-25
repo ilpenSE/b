@@ -38,6 +38,12 @@ struct FunDef {
   Node *body;
 };
 struct ExtrnDecl { std::vector<Name> names; };
+struct GotoStmt { Node *label; };
+struct ReturnStmt { Node *ret_val; };
+struct WhileStmt {
+  Node *cond;
+  Node *body;
+};
 struct VarDef {
   std::string_view name;
   bool is_vector = false;
@@ -67,7 +73,8 @@ struct AddrOf { Node *operand; };
 using NodeVariant = std::variant<
   Number, String, Char, Name, BinOp, FunCall,
   ExtrnDecl, IfStmt, Block, FunDef, Var, Null, Program,
-  IncDec, Unary, Ternary, Assign, Deref, AddrOf, VarDef
+  IncDec, Unary, Ternary, Assign, Deref, AddrOf, VarDef,
+  GotoStmt, ReturnStmt, WhileStmt
 >;
 
 struct Node : NodeVariant {
