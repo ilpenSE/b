@@ -88,6 +88,19 @@ void dump(const Node *node, int depth)
       println("AddrOf");
       dump(ao.operand, depth + 1);
     },
+    [&](const VarDef &vd) {
+      println("VarDef");
+      if (vd.is_vector) {
+        if (vd.size) {
+          println("{}[{}]", vd.name, *vd.size);
+        } else {
+          println("{}[]", vd.name);
+        }
+      } else {
+        println("{}", vd.name);
+      }
+      for (Node *v : vd.values) dump(v, depth + 1);
+    },
     [&](const Ternary &t) {
       println("Ternary");
       dump(t.cond, depth + 1);
@@ -105,6 +118,21 @@ void dump(const Node *node, int depth)
     },
     [&](const Program &p) {
       println("Program");
+      for (const VarDef &vd : p.globals) {
+        indent(depth + 1);
+        print("VarDef ");
+        if (vd.is_vector) {
+          if (vd.size) {
+            println("{}[{}]", vd.name, *vd.size);
+          } else {
+            println("{}[]", vd.name);
+          }
+        } else {
+          println("{}", vd.name);
+        }
+        for (Node *v : vd.values) dump(v, depth + 2);
+      }
+
       for (const FunDef &f : p.functions) {
         indent(depth + 1);
         println("FunDef {}({})", f.name, join_params(f.params));

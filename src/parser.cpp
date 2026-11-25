@@ -15,22 +15,47 @@ bool is_lvalue(Node *node)
 Node *Parser::parse_program()
 {
   std::vector<FunDef> functions;
-  //std::vector<VarDef> globals;
+  std::vector<VarDef> globals;
 
   while (!expect(TokenType::End)) {
     if (m_tok.type == TokenType::Ident) {
       std::string_view name = m_tok.lexeme;
       consume();
-      if (expect(TokenType::OParen)) functions.push_back(std::get<FunDef>(*parse_func(name)));
-      else if (expect(TokenType::OBracket)) todo("globals");
-      else report_error("expected '(' or '['");
+
+      // Function definition
+      if (expect(TokenType::OParen)) {
+        functions.push_back(std::get<FunDef>(*parse_func(name)));
+      } else {
+        // Global constant definition
+        VarDef def{.name=name};
+        if (expect(TokenType::OBracket)) {
+          def.is_vector = true;
+          if (m_tok.type == TokenType::Number) {
+            Node *n = parse_primary();
+            def.size = std::get<Number>(*n).value;
+          }
+          if (!expect(TokenType::CBracket)) report_error("expected ']'");
+        }
+
+        if (m_tok.type != TokenType::Semicolon) {
+          while (true) {
+            Node *v = parse_ival();
+            if (v) def.values.push_back(v);
+            if (expect(TokenType::Comma)) continue;
+            break;
+          }
+        }
+
+        if (!expect(TokenType::Semicolon)) report_error("expected ';'");
+        globals.push_back(std::move(def));
+      }
     } else {
       report_error("expected an identifier");
       consume();
     }
   }
 
-  return node(Program{.functions=std::move(functions)});
+  return node(Program{.functions=std::move(functions), .globals=std::move(globals)});
 }
 
 Node *Parser::parse_stmt()
@@ -162,6 +187,11 @@ Node *Parser::parse_primary()
     return e;
   }
 
+  return parse_ival();
+}
+
+Node *Parser::parse_ival()
+{
   defer { consume(); };
   switch (m_tok.type) {
   case TokenType::Ident: {

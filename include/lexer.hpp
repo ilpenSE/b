@@ -28,6 +28,7 @@ enum class TokenType {
 extern const char *to_cstr(TokenType tt);
 extern std::string_view op_text(TokenType t);
 extern bool is_assign_op(TokenType t);
+extern bool is_constant(TokenType t);
 
 template <>
 struct std::formatter<TokenType> : std::formatter<std::string> {

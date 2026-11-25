@@ -38,8 +38,15 @@ struct FunDef {
   Node *body;
 };
 struct ExtrnDecl { std::vector<Name> names; };
+struct VarDef {
+  std::string_view name;
+  bool is_vector = false;
+  std::optional<int64_t> size = std::nullopt; // v[] -> nullopt
+  std::vector<Node *> values;
+};
 struct Program {
   std::vector<FunDef> functions;
+  std::vector<VarDef> globals;
 };
 struct FunCall {
   Node *callee;
@@ -60,7 +67,7 @@ struct AddrOf { Node *operand; };
 using NodeVariant = std::variant<
   Number, String, Char, Name, BinOp, FunCall,
   ExtrnDecl, IfStmt, Block, FunDef, Var, Null, Program,
-  IncDec, Unary, Ternary, Assign, Deref, AddrOf
+  IncDec, Unary, Ternary, Assign, Deref, AddrOf, VarDef
 >;
 
 struct Node : NodeVariant {
@@ -122,6 +129,7 @@ class Parser {
   Node *parse_func(std::string_view name);
   Node *parse_stmt();
 
+  Node *parse_ival();
   Node *parse_primary();
   Node *parse_rvalue();
   Node *parse_postfix();
