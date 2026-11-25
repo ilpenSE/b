@@ -16,7 +16,7 @@ const char *shift(int &argc, char **&argv)
 { return argc == 0 ? nullptr : (argc--, *argv++); }
 
 // Dumps AST
-void dump(const Expr *e, int depth = 0);
+void dump(const Node *e, int depth = 0);
 
 int main(int argc, char **argv)
 {
@@ -46,7 +46,7 @@ int main(int argc, char **argv)
     Lexer l(f);
     Parser p(l, f);
 
-    Expr *program = p.parse_program();
+    Node *program = p.parse_program();
     dump(program);
   }
 }
@@ -67,12 +67,15 @@ static void indent(int depth) {
   for (int i = 0; i < depth; i++) print("  ");
 }
 
-void dump(const Expr *e, int depth)
+void dump(const Node *node, int depth)
 {
   indent(depth);
-  if (!e) { println("<null>"); return; }
+  if (!node) { println("<null>"); return; }
 
   std::visit(overloaded{
+    [&](const Null&) {
+      println("Null");
+    },
     [&](const Program &p) {
       println("Program");
       for (const FunDef &f : p.functions) {
@@ -83,7 +86,7 @@ void dump(const Expr *e, int depth)
     },
     [&](const Block &b) {
       println("Block");
-      for (const Expr *s : b.stmts) dump(s, depth + 1);
+      for (const Node *s : b.stmts) dump(s, depth + 1);
     },
     [&](const ExtrnDecl &x) {
       print("Extrn");
@@ -95,7 +98,7 @@ void dump(const Expr *e, int depth)
       indent(depth + 1); println("callee:");
       dump(c.callee, depth + 2);
       indent(depth + 1); println("args:");
-      for (const Expr *a : c.args) dump(a, depth + 2);
+      for (const Node *a : c.args) dump(a, depth + 2);
     },
     [&](const BinOp &b) {
       println("BinOp '{}'", b.op);
@@ -117,5 +120,5 @@ void dump(const Expr *e, int depth)
       println("FunDef {}({})", f.name, join_params(f.params));
       dump(f.body, depth + 1);
     },
-  }, e->as);
+  }, *node);
 }
