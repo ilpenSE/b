@@ -9,14 +9,18 @@ void Lexer::skip_ws()
 Token Lexer::read_string(char indicator)
 {
   size_t old_row = m_row, old_col = m_col, old_cur = m_cur;
-  while (peek() != indicator) advance();
-  Token r = {
+  while (peek() != indicator) {
+    // blindly skip any char after escape char
+    if (peek() == '*') advance();
+    advance();
+  }
+
+  defer { advance(); };
+  return Token{
     .type=(indicator == '"' ? TokenType::String : TokenType::Character),
     .lexeme=m_buf.substr(old_cur, m_cur - old_cur),
     .row=old_row, .col=old_col,
   };
-  advance();
-  return r;
 }
 
 Token Lexer::read_number()
@@ -51,12 +55,11 @@ again:
   case '(': case ')': case '<': case '>':
   case ';': case '\0': case '+': case '-':
   case '*': {
-    Token t = {
+    defer{ advance(); };
+    return Token{
       .type=static_cast<TokenType>(c), .lexeme="",
       .row=m_row, .col=m_col
     };
-    advance();
-    return t;
   }
   case '/': {
     if (m_cur + 1 < m_buf.size() && m_buf[m_cur + 1] == '*') { // comment case
