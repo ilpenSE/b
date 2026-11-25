@@ -1,12 +1,51 @@
 #pragma once
 #include "common.hpp"
+#include <format>
+#include <cstddef>
+
+enum class TokenType {
+  // Single character tokens
+  Colon = ':', Assign = '=', LessThan = '<', GreaterThan = '>',
+  OCurly = '{', CCurly = '}', OBracket = '[', CBracket = ']',
+  OParen = '(', CParen = ')', Semicolon = ';', Plus = '+',
+  Minus = '-', Asterisk = '*', Slash = '/', Comma = ',',
+  Ampersand = '&', Mod = '%', Pipe = '|', Question = '?',
+
+  // Special tokens
+  End = '\0', None = 256, Number, String, Char, Ident,
+
+  // Operators with multiple chars
+  ShlAssign, ShrAssign,
+  EqEq, NotEq,
+  LessEq, GreaterEq,
+  Shl, Shr,
+  Inc, Dec,
+  PlusAssign, MinusAssign,
+  MulAssign, DivAssign,
+};
+
+extern const char *to_cstr(TokenType tt);
+
+template <>
+struct std::formatter<TokenType> : std::formatter<std::string> {
+  auto format(TokenType tt, std::format_context& ctx) const
+  {
+    return std::formatter<std::string>::format(to_cstr(tt), ctx);
+  }
+};
+
+struct Token {
+  TokenType type;
+  std::string_view lexeme;
+  size_t row, col; // from start
+};
 
 class Lexer {
   const File &m_tu;
   std::string_view m_buf{};
   size_t m_row = 0, m_col = 0, m_cur = 0;
 
-  void skip_ws();
+  void skip_comments_or_whitespaces();
   Token read_string(char indicator = '"');
   Token read_number();
   Token read_ident();

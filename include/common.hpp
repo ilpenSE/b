@@ -4,17 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
-
-#define BASH_RED "\e[0;31m"
-#define BASH_RESET "\e[0m"
-
-#define TODOF(...) TODO(std::format(__VA_ARGS__))
-
-#define TODO(msg) \
-  do { \
-    eprintln("{}:{}: TODO: {}", __FILE__, __LINE__, msg); \
-    std::exit(31); \
-  } while (0)
+#include <source_location>
 
 struct File {
   std::string name;
@@ -37,43 +27,6 @@ struct File {
 };
 
 extern std::optional<File> read_entire_file(const char *file_name);
-
-enum class TokenType {
-  End = '\0', None = 1, Number, String, Character, Ident,
-  OCurly = '{', CCurly = '}', OBracket = '[', CBracket = ']',
-  OAngle = '<', CAngle = '>', OParen = '(', CParen = ')',
-  Semicolon = ';', Plus = '+', Minus = '-', Asterisk = '*', Slash = '/',
-  Comma = ',',
-};
-
-extern const char *to_cstr(TokenType tt);
-
-template <>
-struct std::formatter<TokenType> : std::formatter<std::string> {
-  auto format(TokenType tt, std::format_context& ctx) const
-  {
-    return std::formatter<std::string>::format(to_cstr(tt), ctx);
-  }
-};
-
-struct Token {
-  TokenType type;
-  std::string_view lexeme;
-  size_t row, col; // from start
-};
-
-enum class Keyword { None, Auto, Extrn, Goto, If, Else, While, Switch, Case, Return };
-
-extern const char *to_cstr(Keyword keyword);
-extern Keyword keyword_of(std::string_view s);
-
-template <>
-struct std::formatter<Keyword> : std::formatter<std::string> {
-  auto format(Keyword keyword, std::format_context& ctx) const
-  {
-    return std::formatter<std::string>::format(to_cstr(keyword), ctx);
-  }
-};
 
 struct DeferHelper {
   template <typename F>
@@ -132,6 +85,27 @@ inline void eprint(std::format_string<Args...> fmt, Args &&...args)
 {
   print(stderr, fmt, std::forward<Args>(args)...);
 }
+
+[[noreturn]]
+inline void todo(std::string_view msg = "", std::source_location loc = std::source_location::current())
+{
+  eprintln("{}:{}:{}: TODO: {}{}{}", loc.file_name(), loc.line(), loc.column(), loc.function_name(), (msg == "" ? "" : ": "), msg);
+  std::exit(31);
+}
+
+[[noreturn]]
+inline void unreachable(std::string_view msg = "", std::source_location loc = std::source_location::current())
+{
+  eprintln("{}:{}:{}: UNREACHABLE: {}{}{}", loc.file_name(), loc.line(), loc.column(), loc.function_name(), (msg == "" ? "" : ": "), msg);
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+  __assume(false);
+#else // GNUC, clang, etc.
+  __builtin_unreachable();
+#endif
+}
+
+#define BASH_RED "\e[0;31m"
+#define BASH_RESET "\e[0m"
 
 template <typename... Args>
 [[noreturn]]

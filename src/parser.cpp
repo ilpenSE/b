@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include <unordered_map>
 
 Node *Parser::parse_program()
 {
@@ -9,8 +10,8 @@ Node *Parser::parse_program()
     if (m_tok.type == TokenType::Ident) {
       std::string_view name = m_tok.lexeme;
       consume();
-      if (expect(TokenType::OParen)) functions.push_back(std::get<FunDef>(*parse_function(name)));
-      else if (expect(TokenType::OBracket)) TODO("global constant definition case");
+      if (expect(TokenType::OParen)) functions.push_back(std::get<FunDef>(*parse_func(name)));
+      else if (expect(TokenType::OBracket)) todo("globals");
       else report_error("expected '(' or '['");
     } else {
       report_error("expected an identifier");
@@ -21,7 +22,7 @@ Node *Parser::parse_program()
   return node(Program{.functions=std::move(functions)});
 }
 
-Node *Parser::parse_statement()
+Node *Parser::parse_stmt()
 {
   // null statement: ;
   if (expect(TokenType::Semicolon)) return node(Null{});
@@ -30,7 +31,7 @@ Node *Parser::parse_statement()
   if (expect(TokenType::OCurly)) {
     std::vector<Node *> stmts;
     while (m_tok.type != TokenType::CCurly && m_tok.type != TokenType::End) {
-      stmts.push_back(parse_statement());
+      stmts.push_back(parse_stmt());
     }
     if (!expect(TokenType::CCurly)) report_error("expected '}}'");
     return node(Block{.stmts=std::move(stmts)});
@@ -40,15 +41,21 @@ Node *Parser::parse_statement()
     auto keyword = keyword_of(m_tok.lexeme);
     if (keyword != Keyword::None) {
       switch (keyword) {
-      case Keyword::Extrn: return parse_extrn();
       case Keyword::If: return parse_ifstmt();
       case Keyword::Else: {
         report_error("else without if");
         consume();
         // Simulate if that else has if and parse statement
-        return parse_statement();
+        return parse_stmt();
       }
-      default: TODOF("Parse keyword for '{}'", keyword);
+      case Keyword::Extrn: return parse_extrn();
+      case Keyword::While: return parse_while();
+      case Keyword::Goto: return parse_goto();
+      case Keyword::Return: return parse_return();
+      case Keyword::Auto: return parse_autodecl();
+      case Keyword::Switch: return parse_switch();
+      case Keyword::Case: return parse_case();
+      default: unreachable("keyword switch-case");
       }
     }
   }
@@ -61,17 +68,36 @@ Node *Parser::parse_statement()
   return e;
 }
 
+// auto name {constant}01 {, name {constant}01}0 ;  statement
+Node *Parser::parse_autodecl()
+{
+  todo();
+}
+
+// switch rvalue statement
+Node *Parser::parse_switch()
+{
+  todo();
+}
+
+// case constant : statement
+Node *Parser::parse_case()
+{
+  todo();
+}
+
+// if ( rvalue ) statement {else statement}01
 Node *Parser::parse_ifstmt()
 {
   consume(); // if
   if (!expect(TokenType::OParen)) report_error("expected '('");
   Node *cond = parse_rvalue();
   if (!expect(TokenType::CParen)) report_error("expected ')'");
-  Node *then_body = parse_statement();
+  Node *then_body = parse_stmt();
   Node *else_body = nullptr;
   if (iskey(Keyword::Else)) {
     consume(); // else
-    else_body = parse_statement();
+    else_body = parse_stmt();
   }
   return node(IfStmt{cond, then_body, else_body});
 }
@@ -91,9 +117,27 @@ Node *Parser::parse_extrn()
   return node(ExtrnDecl{.names=std::move(names)});
 }
 
+// while ( rvalue ) statement
+Node *Parser::parse_while()
+{
+  todo();
+}
+
+// goto rvalue ;
+Node *Parser::parse_goto()
+{
+  todo();
+}
+
+// return {( rvalue )}01 ;
+Node *Parser::parse_return()
+{
+  todo();
+}
+
 Node *Parser::parse_primary()
 {
-  // sub-nodeession case: (node)
+  // sub-expression case: (node)
   if (expect(TokenType::OParen)) {
     Node *e = parse_rvalue();
     if (!expect(TokenType::CParen)) report_error("expected ')'");
@@ -106,7 +150,7 @@ Node *Parser::parse_primary()
     std::string_view name = m_tok.lexeme;
     return node(Name{name});
   }
-  case TokenType::Character: {
+  case TokenType::Char: {
     std::string escaped = escape_chars(m_tok);
     uint64_t value = 0;
     size_t n = escaped.size();
@@ -129,7 +173,7 @@ Node *Parser::parse_primary()
     return node(String{escape_chars(m_tok)});
   }
   default: {
-    report_error("expected an nodeession");
+    report_error("expected an expression");
     return nullptr;
   }
   }
@@ -137,26 +181,61 @@ Node *Parser::parse_primary()
 
 Node *Parser::parse_rvalue()
 {
-  Node *e = parse_primary();
+  return parse_assignment();
+}
 
+Node *Parser::parse_binary(int min_prec)
+{
+  Node *lhs = parse_unary();
+  while (true) {
+    int prec = binop_prec(m_tok.type);
+    if (prec < min_prec) break;
+    TokenType op = m_tok.type;
+    consume();
+    Node *rhs = parse_binary(prec + 1);
+    if (!rhs) return lhs;
+    lhs = node(BinOp{op, lhs, rhs});
+  }
+  return lhs;
+}
+
+Node *Parser::parse_unary()
+{
+  return parse_postfix();
+}
+
+Node *Parser::parse_ternary()
+{ return parse_binary(0); }
+
+Node *Parser::parse_assignment()
+{ return parse_ternary(); }
+
+Node *Parser::parse_postfix()
+{
   // B allows calling constants like 'a'(); or 1();
-  // So we don't constraint that primary nodeession must be identifier
-  while (e && expect(TokenType::OParen)) {
-    std::vector<Node *> args;
-    if (!expect(TokenType::CParen)) {
-      while (1) {
-        args.push_back(parse_rvalue());
-        if (expect(TokenType::Comma)) continue;
-        if (!expect(TokenType::CParen)) report_error("expected ',' or ')'");
-        break;
+  // So we don't constraint that primary expression must be identifier
+  Node *e = parse_primary();
+  while (e) {
+    if (expect(TokenType::OParen)) {
+      std::vector<Node *> args;
+      if (!expect(TokenType::CParen)) {
+        while (true) {
+          args.push_back(parse_rvalue());
+          if (expect(TokenType::Comma)) continue;
+          if (!expect(TokenType::CParen)) report_error("expected ',' or ')'");
+          break;
+        }
       }
-    }
-    e = node(FunCall{.callee=e, .args=std::move(args)});
+      e = node(FunCall{.callee=e, .args=std::move(args)});
+    } else if (m_tok.type == TokenType::Inc || m_tok.type == TokenType::Dec) {
+      TokenType op = m_tok.type; consume();
+      e = node(PostIncDec{op, e});
+    } else break;
   }
   return e;
 }
 
-Node *Parser::parse_function(std::string_view name)
+Node *Parser::parse_func(std::string_view name)
 {
   std::vector<Var> params{};
   while (!expect(TokenType::CParen)) {
@@ -174,7 +253,7 @@ Node *Parser::parse_function(std::string_view name)
 
   Node *body = nullptr;
   if (m_tok.type != TokenType::Semicolon && m_tok.type == TokenType::OCurly) {
-    body = parse_statement();
+    body = parse_stmt();
   } else report_error("expected '{{'");
   return node(FunDef{name, std::move(params), body});
 }
@@ -239,3 +318,59 @@ bool Parser::iskey(Keyword keyword)
 
 void Parser::consume()
 { m_tok = m_l.next(); }
+
+int binop_prec(TokenType t)
+{
+  switch (t) {
+  case TokenType::Asterisk:
+  case TokenType::Slash:
+  case TokenType::Mod:     return 10;
+
+  case TokenType::Plus:
+  case TokenType::Minus:       return 9;
+
+  case TokenType::Shl:
+  case TokenType::Shr:         return 8;
+
+  case TokenType::LessThan:
+  case TokenType::LessEq:
+  case TokenType::GreaterThan:
+  case TokenType::GreaterEq:   return 7;
+
+  case TokenType::EqEq:
+  case TokenType::NotEq:       return 6;
+
+  case TokenType::Ampersand:   return 5;
+  case TokenType::Pipe:        return 4;
+
+  default:                     return -1;
+  }
+}
+
+const char *to_cstr(Keyword keyword)
+{
+  switch (keyword) {
+  case Keyword::Auto: return "auto";
+  case Keyword::Extrn: return "extrn";
+  case Keyword::Goto: return "goto";
+  case Keyword::If: return "if";
+  case Keyword::Else: return "else";
+  case Keyword::While: return "while";
+  case Keyword::Switch: return "switch";
+  case Keyword::Case: return "case";
+  case Keyword::Return: return "return";
+  default: return "<invalid>";
+  }
+}
+
+Keyword keyword_of(std::string_view s) {
+  static const std::unordered_map<std::string_view, Keyword> table = {
+    {"auto", Keyword::Auto},   {"extrn", Keyword::Extrn},
+    {"goto", Keyword::Goto},   {"if", Keyword::If},
+    {"else", Keyword::Else},   {"while", Keyword::While},
+    {"switch", Keyword::Switch}, {"case", Keyword::Case},
+    {"return", Keyword::Return},
+  };
+  auto it = table.find(s);
+  return it == table.end() ? Keyword::None : it->second;
+}

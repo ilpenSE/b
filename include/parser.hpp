@@ -7,11 +7,20 @@
 #include <variant>
 #include <cstdint>
 
-// later
-// enum class Operator {
-//   AssignPlus = 0 /* += */, AssignMinus /* -= */, AssignMult /* *= */, AssignDiv /* /= */,
-//   Plus = '+', Minus = '-', Asterisk = '*', Slash = '/',
-// };
+enum class Keyword { None, Auto, Extrn, Goto, If, Else, While, Switch, Case, Return };
+
+extern const char *to_cstr(Keyword keyword);
+extern Keyword keyword_of(std::string_view s);
+
+template <>
+struct std::formatter<Keyword> : std::formatter<std::string> {
+  auto format(Keyword keyword, std::format_context& ctx) const
+  {
+    return std::formatter<std::string>::format(to_cstr(keyword), ctx);
+  }
+};
+
+extern int binop_prec(TokenType t);
 
 struct Node;
 
@@ -19,7 +28,7 @@ struct Number { int64_t value; };
 struct String { std::string value; };
 struct Char   { uint64_t value; };
 struct Name   { std::string_view name; };
-struct BinOp  { char op; Node *lhs; Node *rhs; };
+struct BinOp  { TokenType op; Node *lhs; Node *rhs; };
 struct IfStmt { Node *cond, *then_body, *else_body; };
 struct Var    { std::string_view name; };
 struct Block  { std::vector<Node *> stmts; };
@@ -37,10 +46,15 @@ struct FunCall {
   std::vector<Node *> args;
 };
 struct Null {};
+struct PostIncDec {
+  TokenType op;
+  Node *expr;
+};
 
 using NodeVariant = std::variant<
   Number, String, Char, Name, BinOp, FunCall,
-  ExtrnDecl, IfStmt, Block, FunDef, Var, Null, Program
+  ExtrnDecl, IfStmt, Block, FunDef, Var, Null, Program,
+  PostIncDec
 >;
 
 struct Node : NodeVariant {
@@ -95,12 +109,25 @@ class Parser {
   std::string escape_chars(Token lit);
   uint64_t pack_chars(std::string_view sv);
 
-  Node *parse_function(std::string_view name);
-  Node *parse_statement();
-  Node *parse_rvalue();
+  Node *parse_func(std::string_view name);
+  Node *parse_stmt();
+
   Node *parse_primary();
+  Node *parse_rvalue();
+  Node *parse_postfix();
+  Node *parse_ternary();
+  Node *parse_assignment();
+  Node *parse_unary();
+  Node *parse_binary(int min_prec);
+
   Node *parse_extrn();
   Node *parse_ifstmt();
+  Node *parse_while();
+  Node *parse_goto();
+  Node *parse_return();
+  Node *parse_autodecl();
+  Node *parse_switch();
+  Node *parse_case();
 public:
   Parser(Lexer &lexer, const File &f) : m_l(lexer), m_tu(f), m_tok(m_l.next()) {}
 

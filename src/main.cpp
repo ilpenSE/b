@@ -76,6 +76,9 @@ void dump(const Node *node, int depth)
     [&](const Null&) {
       println("Null");
     },
+    [&](const PostIncDec&) {
+      println("PostIncDec");
+    },
     [&](const Program &p) {
       println("Program");
       for (const FunDef &f : p.functions) {
