@@ -154,7 +154,7 @@ Node *Parser::parse_primary()
     std::string escaped = escape_chars(m_tok);
     uint64_t value = 0;
     size_t n = escaped.size();
-    if (n > 8) report_error(0, n, "too many characters ({}) in a literal maximum can be 8", n);
+    if (n > 8) report_error({.len=n}, "too many characters ({}) in a literal maximum can be 8", n);
     else if (n == 0) report_error("empty character literals are not allowed");
     else value = pack_chars(escaped);
     return node(Char{value});
@@ -201,6 +201,16 @@ Node *Parser::parse_binary(int min_prec)
 
 Node *Parser::parse_unary()
 {
+  if (m_tok.type == TokenType::Inc || m_tok.type == TokenType::Dec) {
+    auto op = m_tok.type;
+    Token prev_tok = m_tok;
+    consume();
+    Node *operand = parse_unary();
+    if (!std::holds_alternative<Name>(*operand)) {
+      report_error({.tok=&prev_tok, .len=2}, "lvalue required in pre-{} operator", (op == TokenType::Inc ? "increment" : "decrement"));
+    }
+    return node(IncDec{.prefix=true, .op=op, .value=operand});
+  }
   return parse_postfix();
 }
 
@@ -228,8 +238,12 @@ Node *Parser::parse_postfix()
       }
       e = node(FunCall{.callee=e, .args=std::move(args)});
     } else if (m_tok.type == TokenType::Inc || m_tok.type == TokenType::Dec) {
-      TokenType op = m_tok.type; consume();
-      e = node(PostIncDec{op, e});
+      TokenType op = m_tok.type;
+      if (!std::holds_alternative<Name>(*e)) {
+        report_error({.len=2}, "lvalue required in post-{} operator", (op == TokenType::Inc ? "increment" : "decrement"));
+      }
+      consume();
+      e = node(IncDec{.prefix=false, .op=op, .value=e});
     } else break;
   }
   return e;
@@ -285,7 +299,7 @@ std::string Parser::escape_chars(Token lit)
       case '\'': v.push_back('\''); break;
       case 'n': v.push_back('\n'); break;
       default: {
-        report_error(it - sv.cbegin(), "invalid escape character: '*{}'", *it);
+        report_error({.off=size_t(it - sv.cbegin() - 1), .len=2}, "invalid escape character: '*{}'", *it);
         return v;
       }
       }

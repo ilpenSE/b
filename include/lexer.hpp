@@ -7,9 +7,9 @@ enum class TokenType {
   // Single character tokens
   Colon = ':', Assign = '=', LessThan = '<', GreaterThan = '>',
   OCurly = '{', CCurly = '}', OBracket = '[', CBracket = ']',
-  OParen = '(', CParen = ')', Semicolon = ';', Plus = '+',
-  Minus = '-', Asterisk = '*', Slash = '/', Comma = ',',
-  Ampersand = '&', Mod = '%', Pipe = '|', Question = '?',
+  OParen = '(', CParen = ')', Semicolon = ';', Not = '!',
+  Asterisk = '*', Slash = '/', Comma = ',', Ampersand = '&',
+  Mod = '%', Pipe = '|', Question = '?', Plus = '+', Minus = '-',
 
   // Special tokens
   End = '\0', None = 256, Number, String, Char, Ident,

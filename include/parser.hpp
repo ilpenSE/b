@@ -46,15 +46,16 @@ struct FunCall {
   std::vector<Node *> args;
 };
 struct Null {};
-struct PostIncDec {
+struct IncDec {
+  bool prefix;
   TokenType op;
-  Node *expr;
+  Node *value;
 };
 
 using NodeVariant = std::variant<
   Number, String, Char, Name, BinOp, FunCall,
   ExtrnDecl, IfStmt, Block, FunDef, Var, Null, Program,
-  PostIncDec
+  IncDec
 >;
 
 struct Node : NodeVariant {
@@ -79,28 +80,30 @@ class Parser {
   Token m_tok; // current token / cursor
   size_t m_nerr = 0;
 
+  struct ReportErrorOpts {
+    const Token *tok = nullptr;
+    size_t off = 0, len = 1;
+  };
+
   template <typename... Args>
-  void report_error(size_t off, size_t len, std::format_string<Args...> fmt, Args &&...args)
+  void report_error(ReportErrorOpts opts, std::format_string<Args...> fmt, Args &&...args)
   {
     std::string msg = std::format(fmt, std::forward<Args...>(args)...);
-    auto l = m_tu.line(m_tok.row);
+    const Token *tok = opts.tok ? opts.tok : &m_tok;
+    auto l = m_tu.line(tok->row);
 
     if (m_nerr == 0) {
       eprintln("In file {}:", m_tu.name);
     }
-    eprintln("{}:{}:{}: error: {}", m_tu.name, m_tok.row + 1, m_tok.col, msg);
-    eprintln("{:5} | {}", m_tok.row + 1, l);
-    eprintln("      | {}{}", std::string(m_tok.col + off, ' '), std::string(std::max<size_t>(len, 1), '^'));
+    eprintln("{}:{}:{}: error: {}", m_tu.name, tok->row + 1, tok->col, msg);
+    eprintln("{:5} | {}", tok->row + 1, l);
+    eprintln("      | {}{}", std::string(tok->col + opts.off, ' '), std::string(std::max<size_t>(opts.len, 1), '^'));
     m_nerr++;
   }
 
   template <typename... Args>
   void report_error(std::format_string<Args...> fmt, Args &&...args)
-  { report_error(0, 1, fmt, std::forward<Args...>(args)...); }
-
-  template <typename... Args>
-  void report_error(size_t off, std::format_string<Args...> fmt, Args &&...args)
-  { report_error(off, 1, fmt, std::forward<Args...>(args)...); }
+  { report_error({}, fmt, std::forward<Args...>(args)...); }
 
   bool expect(TokenType type);
   void consume();

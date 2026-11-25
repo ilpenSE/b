@@ -71,26 +71,27 @@ Token Lexer::next()
 {
   skip_comments_or_whitespaces();
 
-static const struct { std::string_view text; TokenType type; } ops[] = {
-  {"<<=", TokenType::ShlAssign}, {">>=", TokenType::ShrAssign},
+  static const struct { std::string_view text; TokenType type; } ops[] = {
+    {"<<=", TokenType::ShlAssign}, {">>=", TokenType::ShrAssign},
 
-  {"==", TokenType::EqEq},  {"!=", TokenType::NotEq},
-  {"<=", TokenType::LessEq}, {">=", TokenType::GreaterEq},
-  {"<<", TokenType::Shl},   {">>", TokenType::Shr},
-  {"++", TokenType::Inc},   {"--", TokenType::Dec},
-  {"+=", TokenType::PlusAssign}, {"-=", TokenType::MinusAssign},
-  {"*=", TokenType::MulAssign},  {"/=", TokenType::DivAssign},
+    {"==", TokenType::EqEq},  {"!=", TokenType::NotEq},
+    {"<=", TokenType::LessEq}, {">=", TokenType::GreaterEq},
+    {"<<", TokenType::Shl},   {">>", TokenType::Shr},
+    {"++", TokenType::Inc},   {"--", TokenType::Dec},
+    {"+=", TokenType::PlusAssign}, {"-=", TokenType::MinusAssign},
+    {"*=", TokenType::MulAssign},  {"/=", TokenType::DivAssign},
 
-  {"{", TokenType::OCurly},    {"}", TokenType::CCurly},
-  {"[", TokenType::OBracket},  {"]", TokenType::CBracket},
-  {"(", TokenType::OParen},    {")", TokenType::CParen},
-  {"<", TokenType::LessThan},  {">", TokenType::GreaterThan},
-  {"%", TokenType::Mod},       {"|", TokenType::Pipe},
-  {":", TokenType::Colon},     {"?", TokenType::Question},
-  {"*", TokenType::Asterisk},  {"&", TokenType::Ampersand},
-  {";", TokenType::Semicolon}, {",", TokenType::Comma},
-  {"+", TokenType::Plus}, {"-", TokenType::Minus},
-};
+    {"{", TokenType::OCurly},    {"}", TokenType::CCurly},
+    {"[", TokenType::OBracket},  {"]", TokenType::CBracket},
+    {"(", TokenType::OParen},    {")", TokenType::CParen},
+    {"<", TokenType::LessThan},  {">", TokenType::GreaterThan},
+    {"%", TokenType::Mod},       {"|", TokenType::Pipe},
+    {":", TokenType::Colon},     {"?", TokenType::Question},
+    {"*", TokenType::Asterisk},  {"&", TokenType::Ampersand},
+    {";", TokenType::Semicolon}, {",", TokenType::Comma},
+    {"+", TokenType::Plus}, {"-", TokenType::Minus},
+    {"!", TokenType::Not},
+  };
 
   char c = peek();
 

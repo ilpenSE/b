@@ -76,8 +76,9 @@ void dump(const Node *node, int depth)
     [&](const Null&) {
       println("Null");
     },
-    [&](const PostIncDec&) {
-      println("PostIncDec");
+    [&](const IncDec &id) {
+      println("{}{}", (id.prefix ? "Pre" : "Post"), id.op);
+      dump(id.value, depth + 1);
     },
     [&](const Program &p) {
       println("Program");
