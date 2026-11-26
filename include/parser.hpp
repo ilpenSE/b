@@ -70,11 +70,18 @@ struct Assign { TokenType op; Node *target, *value; };
 struct Deref { Node *operand; };
 struct AddrOf { Node *operand; };
 
+struct AutoVar {
+  std::string_view name;
+  std::optional<int64_t> size;   // nullopt: single word, value: size of vector
+};
+struct AutoDecl { std::vector<AutoVar> vars; };
+
 using NodeVariant = std::variant<
   Number, String, Char, Name, BinOp, FunCall,
   ExtrnDecl, IfStmt, Block, FunDef, Var, Null, Program,
   IncDec, Unary, Ternary, Assign, Deref, AddrOf, VarDef,
-  GotoStmt, ReturnStmt, WhileStmt, Label, SwitchStmt, CaseLabel
+  GotoStmt, ReturnStmt, WhileStmt, Label, SwitchStmt, CaseLabel,
+  AutoDecl
 >;
 
 struct Node : NodeVariant {

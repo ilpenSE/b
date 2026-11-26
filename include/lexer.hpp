@@ -15,14 +15,11 @@ enum class TokenType {
   End = '\0', None = 256, Number, String, Char, Ident,
 
   // Operators with multiple chars
-  ShlAssign, ShrAssign,
-  EqEq, NotEq,
-  LessEq, GreaterEq,
-  Shl, Shr,
-  Inc, Dec,
-  PlusAssign, MinusAssign,
-  MulAssign, DivAssign,
-  ModAssign,
+  ShlAssign, ShrAssign, EqEq, NotEq,
+  LessEq, GreaterEq, Shl, Shr,
+  Inc, Dec, PlusAssign, MinusAssign,
+  MulAssign, DivAssign, ModAssign,
+  AndAssign, OrAssign
 };
 
 extern const char *to_cstr(TokenType tt);

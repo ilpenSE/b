@@ -102,6 +102,17 @@ void dump(const Node *node, int depth)
       println("AddrOf");
       dump(ao.operand, depth + 1);
     },
+    [&](const AutoDecl &ad) {
+      println("AutoDecl");
+      for (auto &v : ad.vars) {
+        indent(depth + 1);
+        print("{}", v.name);
+        if (v.size.has_value()) {
+          print("[{}]", *v.size);
+        }
+        println("");
+      }
+    },
     [&](const VarDef &vd) {
       println("VarDef");
       if (vd.is_vector) {

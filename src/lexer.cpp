@@ -11,7 +11,8 @@ constexpr const Token ops[] = {
   {TokenType::Inc, "++"},        {TokenType::Dec, "--"},
   {TokenType::PlusAssign, "+="}, {TokenType::MinusAssign, "-="},
   {TokenType::MulAssign, "*="},  {TokenType::DivAssign, "/="},
-  {TokenType::ModAssign, "%="},
+  {TokenType::ModAssign, "%="},  {TokenType::AndAssign, "&="},
+  {TokenType::OrAssign, "|="},
 
   {TokenType::OCurly, "{"},    {TokenType::CCurly, "}"},
   {TokenType::OBracket, "["},  {TokenType::CBracket, "]"},
@@ -48,14 +49,11 @@ bool is_constant(TokenType t)
 bool is_assign_op(TokenType t)
 {
   switch (t) {
-  case TokenType::Eq:
-  case TokenType::PlusAssign:
-  case TokenType::MinusAssign:
-  case TokenType::MulAssign:
-  case TokenType::DivAssign:
-  case TokenType::ModAssign:
-  case TokenType::ShlAssign:
-  case TokenType::ShrAssign:
+  case TokenType::Eq: case TokenType::PlusAssign:
+  case TokenType::MinusAssign: case TokenType::MulAssign:
+  case TokenType::DivAssign: case TokenType::ModAssign:
+  case TokenType::ShlAssign: case TokenType::ShrAssign:
+  case TokenType::AndAssign: case TokenType::OrAssign:
     return true;
   default:
     return false;
@@ -227,6 +225,8 @@ const char *to_cstr(TokenType tt)
   case TokenType::MulAssign: return "MulAssign";
   case TokenType::DivAssign: return "DivAssign";
   case TokenType::ModAssign: return "ModAssign";
+  case TokenType::AndAssign: return "AndAssign";
+  case TokenType::OrAssign: return "OrAssign";
   default: return "<invalid>";
   }
 }

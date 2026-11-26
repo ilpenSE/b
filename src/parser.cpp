@@ -127,7 +127,31 @@ Node *Parser::parse_label()
 // auto name {constant}01 {, name {constant}01}0 ;  statement
 Node *Parser::parse_autodecl()
 {
-  todo();
+  consume(); // auto
+
+  std::vector<AutoVar> vars;
+
+  while (m_tok.type == TokenType::Ident) {
+    AutoVar var{.name=m_tok.lexeme};
+    consume(); // name
+
+    if (m_tok.type == TokenType::Number) {
+      var.size = std::get<Number>(*parse_atom()).value;
+    } else if (is_constant(m_tok.type)) {
+      // something like auto a "hello"; legal according to BNF
+      // but it's meaningless in context of B
+      report_error("array size must be number");
+      consume();
+    }
+
+    vars.push_back(std::move(var));
+
+    if (expect(TokenType::Comma)) continue;
+    break;
+  }
+
+  if (!expect(TokenType::Semicolon)) report_error("expected ';'");
+  return node(AutoDecl{std::move(vars)});
 }
 
 // switch rvalue statement
@@ -174,7 +198,7 @@ Node *Parser::parse_extrn()
     names.push_back({m_tok.lexeme});
     consume();
     if (expect(TokenType::Comma)) continue;
-    if (!expect(TokenType::Semicolon)) report_error("expected ';'");
+    if (!expect(TokenType::Semicolon)) report_error("expected ',' or';'");
     break;
   }
   return node(ExtrnDecl{.names=std::move(names)});
