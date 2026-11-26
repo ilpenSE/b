@@ -40,10 +40,10 @@ struct FunDef {
 struct ExtrnDecl { std::vector<Name> names; };
 struct GotoStmt { Node *label; };
 struct ReturnStmt { Node *ret_val; };
-struct WhileStmt {
-  Node *cond;
-  Node *body;
-};
+struct WhileStmt { Node *cond; Node *body; };
+struct SwitchStmt { Node *cond, *body; };
+struct CaseLabel { Node *value, *body; };
+struct Label { std::string_view name; Node *body; };
 struct VarDef {
   std::string_view name;
   bool is_vector = false;
@@ -74,7 +74,7 @@ using NodeVariant = std::variant<
   Number, String, Char, Name, BinOp, FunCall,
   ExtrnDecl, IfStmt, Block, FunDef, Var, Null, Program,
   IncDec, Unary, Ternary, Assign, Deref, AddrOf, VarDef,
-  GotoStmt, ReturnStmt, WhileStmt
+  GotoStmt, ReturnStmt, WhileStmt, Label, SwitchStmt, CaseLabel
 >;
 
 struct Node : NodeVariant {
@@ -99,6 +99,7 @@ class Parser {
   Lexer &m_l;
   const File &m_tu;
   Token m_tok; // current token / cursor
+  Token m_next; // next token / lookahead
   size_t m_nerr = 0;
 
   struct ReportErrorOpts {
@@ -136,6 +137,8 @@ class Parser {
   Node *parse_func(std::string_view name);
   Node *parse_stmt();
 
+  Node *parse_atom();
+  Node *parse_const();
   Node *parse_ival();
   Node *parse_primary();
   Node *parse_rvalue();
@@ -145,6 +148,7 @@ class Parser {
   Node *parse_unary();
   Node *parse_binary(int min_prec);
 
+  Node *parse_label();
   Node *parse_extrn();
   Node *parse_ifstmt();
   Node *parse_while();
@@ -154,7 +158,7 @@ class Parser {
   Node *parse_switch();
   Node *parse_case();
 public:
-  Parser(Lexer &lexer, const File &f) : m_l(lexer), m_tu(f), m_tok(m_l.next()) {}
+  Parser(Lexer &lexer, const File &f) : m_l(lexer), m_tu(f) { consume(); consume(); }
 
   Node *parse_program();
 };

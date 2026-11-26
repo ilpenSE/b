@@ -18,6 +18,7 @@ struct File {
   }
 
   std::string_view line(size_t row) const {
+    if (row >= line_starts.size()) return {};
     std::string_view c = content;
     size_t b = line_starts[row];
     size_t e = (row + 1 < line_starts.size()) ? line_starts[row + 1] : c.size();

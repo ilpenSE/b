@@ -84,6 +84,20 @@ void dump(const Node *node, int depth)
       println("Deref");
       dump(d.operand, depth + 1);
     },
+    [&](const Label &l) {
+      println("Label {}", l.name);
+      dump(l.body, depth + 1);
+    },
+    [&](const CaseLabel &l) {
+      println("CaseLabel");
+      dump(l.value, depth + 1);
+      dump(l.body, depth + 1);
+    },
+    [&](const SwitchStmt &l) {
+      println("SwitchStmt");
+      dump(l.cond, depth + 1);
+      dump(l.body, depth + 1);
+    },
     [&](const AddrOf &ao) {
       println("AddrOf");
       dump(ao.operand, depth + 1);

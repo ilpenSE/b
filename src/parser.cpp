@@ -94,6 +94,9 @@ Node *Parser::parse_stmt()
       default: unreachable("keyword switch-case");
       }
     }
+    if (m_next.type == TokenType::Colon) {
+      return parse_label();
+    }
   }
 
   Node *e = parse_rvalue();
@@ -111,6 +114,16 @@ Node *Parser::parse_stmt()
   return e;
 }
 
+// name : statement (labels)
+Node *Parser::parse_label()
+{
+  std::string_view name = m_tok.lexeme;
+  consume(); // name
+  consume(); // :
+  Node *body = parse_stmt();
+  return node(Label{name, body});
+}
+
 // auto name {constant}01 {, name {constant}01}0 ;  statement
 Node *Parser::parse_autodecl()
 {
@@ -120,13 +133,20 @@ Node *Parser::parse_autodecl()
 // switch rvalue statement
 Node *Parser::parse_switch()
 {
-  todo();
+  consume(); // switch
+  Node *cond = parse_rvalue();
+  Node *body = parse_stmt();
+  return node(SwitchStmt{cond, body});
 }
 
 // case constant : statement
 Node *Parser::parse_case()
 {
-  todo();
+  consume(); // case
+  Node *value = parse_const();
+  if (!expect(TokenType::Colon)) report_error("expected ':' in case statement");
+  Node *body = parse_stmt();
+  return node(CaseLabel{value, body});
 }
 
 // if ( rvalue ) statement {else statement}01
@@ -207,7 +227,22 @@ Node *Parser::parse_primary()
   return parse_ival();
 }
 
+Node *Parser::parse_const()
+{
+  if (!is_constant(m_tok.type)) {
+    report_error("expected a constant");
+    return nullptr;
+  }
+  return parse_atom();
+}
+
 Node *Parser::parse_ival()
+{
+  if (m_tok.type == TokenType::Ident) return parse_atom();
+  return parse_const();
+}
+
+Node *Parser::parse_atom()
 {
   defer { consume(); };
   switch (m_tok.type) {
@@ -435,7 +470,7 @@ uint64_t Parser::pack_chars(std::string_view sv)
 bool Parser::expect(TokenType type)
 {
   if (m_tok.type != type) return false;
-  m_tok = m_l.next();
+  consume();
   return true;
 }
 
@@ -445,7 +480,7 @@ bool Parser::iskey(Keyword keyword)
 }
 
 void Parser::consume()
-{ m_tok = m_l.next(); }
+{ m_tok = m_next; m_next = m_l.next(); }
 
 int binop_prec(TokenType t)
 {

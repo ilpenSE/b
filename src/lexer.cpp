@@ -38,7 +38,7 @@ constexpr auto ops_table = make_ops_table();
 bool is_constant(TokenType t)
 {
   switch (t) {
-  case TokenType::Char: case TokenType::Ident:
+  case TokenType::Char:
   case TokenType::Number: case TokenType::String:
     return true;
   default: return false;
